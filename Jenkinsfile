@@ -12,7 +12,7 @@ pipeline {
         choice(
             name: 'ACTION',
             choices: ['apply', 'destroy'],
-            description: 'apply = build/update infrastructure, destroy = sh 'terraform plan -destroy -input=false -out=tfplan'
+            description: 'apply = build/update infrastructure; destroy = tear it down'
         )
     }
 
@@ -115,9 +115,7 @@ pipeline {
         }
 
         always {
-            dir(env.TF_DIR) {
-                sh 'rm -f tfplan plan.txt'
-            }
+            sh 'if [ -d terraform ]; then rm -f terraform/tfplan terraform/plan.txt; fi'
         }
     }
 }
