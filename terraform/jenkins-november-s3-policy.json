@@ -1,0 +1,44 @@
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListNovemberTerraformState",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::november-terraform-state-585768150796",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "november-cicd/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GetNovemberBucketLocation",
+      "Effect": "Allow",
+      "Action": "s3:GetBucketLocation",
+      "Resource": "arn:aws:s3:::november-terraform-state-585768150796"
+    },
+    {
+      "Sid": "ReadWriteNovemberTerraformState",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::november-terraform-state-585768150796/november-cicd/terraform.tfstate"
+    },
+    {
+      "Sid": "ManageNovemberTerraformLock",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::november-terraform-state-585768150796/november-cicd/terraform.tfstate.tflock"
+    }
+  ]
+}

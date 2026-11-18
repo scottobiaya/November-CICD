@@ -1,0 +1,48 @@
+# Terraform working files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Terraform variable files
+*.tfvars
+*.tfvars.json
+
+# Local overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Sensitive credentials and keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
+.env
+.env.*
+
+# AWS credentials
+.aws/
+credentials
+config
+
+# Jenkins temporary files
+jenkins_home/
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Local backups and temporary files
+*.backup
+*.bak
+*.tmp
