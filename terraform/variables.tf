@@ -6,14 +6,10 @@ variable "public_key" {
 }
 
 
+
 variable "key_name" {
   description = "EC2 SSH key pair name"
   type        = string
   default     = "november-ec2-key"
 }
 
-variable "public_key_path" {
-  description = "Path to the SSH public key"
-  type        = string
-  default     = "C:/Users/adm-sobiaya/.ssh/aws-lab.pub"
-}

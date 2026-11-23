@@ -97,8 +97,9 @@ resource "aws_instance" "example" {
 
 }
 
-resource "aws_key_pair" "deployer" {
-  key_name   = var.key_name
-  public_key = file(var.public_key_path)
 
+
+resource "aws_key_pair" "deployer" {
+  key_name   = "november-ec2-key"
+  public_key = var.public_key
 }
