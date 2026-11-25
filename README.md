@@ -1,328 +1,397 @@
-# November AWS Infrastructure Automation with Terraform and Jenkins
+﻿# AWS Terraform & Jenkins CI/CD Pipeline
 
 ## Project Overview
 
-This project demonstrates how to automate AWS infrastructure provisioning using **Terraform, Jenkins, GitHub, and AWS IAM**.
+This project demonstrates the implementation of an automated Infrastructure as Code (IaC) and Continuous Integration/Continuous Deployment (CI/CD) pipeline using **Terraform, Jenkins, GitHub and Amazon Web Services (AWS)**.
 
-The objective is to implement an Infrastructure as Code (IaC) workflow in which Terraform manages AWS resources, GitHub stores the project source code, and Jenkins automates the Terraform deployment process through a CI/CD pipeline.
+The solution provisions and manages separate AWS infrastructure environments for Development, Staging and Production using reusable Terraform modules. Jenkins automates the deployment workflow, validates Terraform configurations, generates execution plans and manages production deployment through a manual approval gate.
 
-The pipeline performs Terraform initialization, formatting checks, validation, planning, and a manual approval before applying infrastructure changes.
+The project demonstrates practical DevOps engineering principles, including infrastructure automation, environment separation, remote state management, IAM permissions, pipeline orchestration and deployment control.
 
-## Technologies Used
+## Architecture
 
-- **Amazon Web Services (AWS):** Cloud infrastructure
-- **Terraform:** Infrastructure as Code
-- **Jenkins:** CI/CD automation
-- **Git and GitHub:** Source code management and version control
-- **Amazon S3:** Remote Terraform state storage
-- **AWS IAM:** Identity and access management
-- **Amazon EC2:** Virtual server hosting Jenkins
+The solution uses the following components:
 
-## Project Architecture
+- **GitHub:** Source code repository and version control.
+- **Jenkins:** CI/CD automation server hosted on an AWS EC2 instance.
+- **Terraform:** Infrastructure provisioning and configuration management.
+- **AWS EC2:** Compute infrastructure for the deployed environments.
+- **Amazon VPC:** Network isolation for Dev, Staging and Production.
+- **Amazon S3:** Centralised remote Terraform state storage.
+- **AWS IAM:** Role-based permissions for Jenkins to interact with AWS.
+- **Nginx:** Web server deployed on the provisioned EC2 instances.
 
-The workflow follows this sequence:
+### Architecture Workflow
 
-1. Terraform configuration files are maintained in the local project repository.
-2. Changes are committed and pushed to GitHub.
-3. Jenkins retrieves the source code from the GitHub repository.
-4. Jenkins executes the Terraform pipeline on the EC2 instance.
-5. Terraform authenticates with AWS using the EC2 instance's IAM role.
-6. Terraform stores its state file remotely in an Amazon S3 bucket.
-7. Jenkins executes Terraform initialization, formatting, validation, and planning.
-8. The pipeline archives the Terraform plan for review.
-9. A manual approval is required before Terraform applies the changes.
-10. Terraform applies the approved infrastructure changes to AWS.
+1. Terraform configurations are maintained in GitHub.
+2. Jenkins checks out the latest source code from the `main` branch.
+3. Jenkins verifies the installed tools and AWS account identity.
+4. Terraform formatting and configuration validation are performed.
+5. Terraform initialises the S3 remote backend for each environment.
+6. Jenkins generates and archives Terraform execution plans.
+7. Development infrastructure is provisioned automatically.
+8. Staging infrastructure is provisioned automatically.
+9. A Production execution plan is generated and archived.
+10. Jenkins requests manual approval before Production deployment.
+11. Following approval, Jenkins executes the Production Terraform plan.
 
-## AWS Infrastructure
+## Technology Stack
 
-The project uses Terraform to manage the following AWS resources:
+| Technology | Purpose |
+|---|---|
+| AWS | Cloud infrastructure |
+| Terraform | Infrastructure as Code |
+| Jenkins | CI/CD automation |
+| Git and GitHub | Version control |
+| Amazon EC2 | Compute resources |
+| Amazon VPC | Network isolation |
+| Amazon S3 | Remote Terraform state |
+| AWS IAM | Identity and access management |
+| Nginx | Web server |
+| Linux / Amazon Linux 2023 | Jenkins and application hosting |
+| PowerShell | Local administration and AWS CLI operations |
+
+## Repository Structure
+
+```text
+November-CICD/
+│
+├── .gitignore
+├── Jenkinsfile
+├── README.md
+│
+└── terraform/
+    │
+    ├── main.tf
+    ├── provider.tf
+    ├── variables.tf
+    ├── outputs.tf
+    ├── versions.tf
+    ├── backend.tf
+    │
+    ├── modules/
+    │   └── infrastructure/
+    │       ├── main.tf
+    │       ├── variables.tf
+    │       └── outputs.tf
+    │
+    └── environments/
+        │
+        ├── dev/
+        │   ├── backend.tf
+        │   ├── main.tf
+        │   ├── provider.tf
+        │   ├── variables.tf
+        │   ├── outputs.tf
+        │   ├── versions.tf
+        │   └── terraform.tfvars
+        │
+        ├── staging/
+        │   ├── backend.tf
+        │   ├── main.tf
+        │   ├── provider.tf
+        │   ├── variables.tf
+        │   ├── outputs.tf
+        │   ├── versions.tf
+        │   └── terraform.tfvars
+        │
+        └── prod/
+            ├── backend.tf
+            ├── main.tf
+            ├── provider.tf
+            ├── variables.tf
+            ├── outputs.tf
+            ├── versions.tf
+            └── terraform.tfvars
+```
+
+## Terraform Infrastructure
+
+The project uses a reusable Terraform module to avoid duplicating infrastructure code across environments.
+
+The shared module provisions:
 
 - Amazon VPC
-- Public and private subnets
 - Internet Gateway
-- Public route table
+- Public subnet
+- Route table
 - Route table association
-- Security Group
+- Security group
 - EC2 instance
-- EC2 key pair
+- Nginx web server installation and configuration
 
-The infrastructure is defined as code, allowing resources to be provisioned and managed consistently.
+Each environment calls the shared module with its own configuration values.
 
-## Terraform Remote State Management
+### Environment Configuration
 
-Terraform uses an Amazon S3 backend to store its state file remotely.
+| Configuration | Development | Staging | Production |
+|---|---|---|---|
+| Environment | dev | staging | prod |
+| VPC CIDR | 10.10.0.0/16 | 10.20.0.0/16 | 10.30.0.0/16 |
+| Subnet CIDR | 10.10.1.0/24 | 10.20.1.0/24 | 10.30.1.0/24 |
+| EC2 instance | t3.micro | t3.small | t3.medium |
+| Web server | Nginx | Nginx | Nginx |
 
-The S3 backend configuration provides:
+The environments use separate network configurations and independent Terraform state files.
 
-- Centralised state storage.
-- Encryption at rest.
-- S3 bucket versioning for state recovery.
-- S3 lockfile-based state locking to help prevent concurrent state modifications.
+## Remote Terraform State Management
 
-The backend configuration is maintained in the Terraform configuration.
+Terraform state is stored remotely in an Amazon S3 bucket rather than relying on local state files.
 
-**Important:** Terraform state files can contain sensitive infrastructure information. They should not be committed to GitHub.
+**S3 backend configuration:**
 
-## AWS IAM Configuration
+- Bucket: `november-terraform-state-585768150796`
+- AWS Region: `us-east-1`
+- State encryption: Enabled
+- S3 bucket versioning: Enabled
+- State locking: Enabled using Terraform's native S3 lock file mechanism.
 
-The Jenkins EC2 instance uses an IAM instance profile to obtain temporary AWS credentials.
+### Separate State Files
 
-The IAM configuration consists of:
+Each environment has an independent state file:
 
-### 1. IAM Role
+| Environment | S3 state key |
+|---|---|
+| Root | `november-cicd/terraform.tfstate` |
+| Development | `november-cicd/dev/terraform.tfstate` |
+| Staging | `november-cicd/staging/terraform.tfstate` |
+| Production | `november-cicd/prod/terraform.tfstate` |
 
-An IAM role named:
-
-`Jenkins-EC2-Terraform-Role`
-
-This role is trusted by the EC2 service and allows the EC2 instance to assume the role.
-
-### 2. IAM Policies
-
-The role has the required managed policies attached to provide permissions for Terraform operations.
-
-These include permissions for:
-
-- Managing the required EC2 resources.
-- Managing the required networking resources.
-- Accessing the S3 bucket used for Terraform remote state.
-
-### 3. IAM Instance Profile
-
-The instance profile:
-
-`Jenkins-EC2-Terraform-Profile`
-
-contains the IAM role and is attached to the Jenkins EC2 instance.
-
-This allows Jenkins and Terraform to authenticate with AWS without storing long-term AWS access keys on the EC2 server.
-
-## Jenkins Configuration
-
-Jenkins is installed on an Amazon Linux EC2 instance.
-
-The Jenkins server runs the tools required for the pipeline, including:
-
-- Java
-- Git
-- Terraform
-- AWS CLI
-
-Jenkins retrieves the project from GitHub and executes the pipeline defined in the root-level `Jenkinsfile`.
-
-### Jenkins Credentials
-
-The following credentials are configured in Jenkins:
-
-**1. GitHub Repository Credential**
-
-Used to authenticate Jenkins with the GitHub repository over HTTPS.
-
-**2. Terraform Public Key Credential**
-
-- Credential type: Secret text
-- Credential ID: `terraform-public-key`
-- Purpose: Supplies the SSH public key to Terraform securely during the pipeline execution.
-
-The credential is exposed to Terraform through the environment variable:
-
-`TF_VAR_public_key`
-
-Terraform automatically maps this environment variable to the input variable `public_key`.
-
-The SSH public key is used by Terraform when managing the AWS EC2 key pair resource.
-
-No private SSH key is stored in this Jenkins credential.
+This separation prevents one environment's Terraform state from being confused with another's.
 
 ## Jenkins CI/CD Pipeline
 
-The pipeline is defined in the `Jenkinsfile`.
+The Jenkins pipeline is defined in the root `Jenkinsfile`.
 
-It contains the following stages:
+Jenkins is hosted on an Amazon EC2 instance and uses an attached IAM instance profile to obtain AWS permissions without storing long-lived AWS access keys in the pipeline.
+
+### Pipeline Stages
 
 | Stage | Description |
 |---|---|
-| Checkout | Retrieves the latest source code from GitHub. |
-| Verify Tools and AWS Identity | Checks Terraform and confirms the AWS identity used by Jenkins. |
-| Terraform Init | Initialises Terraform and configures the S3 backend. |
-| Terraform Format Check | Checks Terraform files for consistent formatting. |
-| Terraform Validate | Checks the Terraform configuration for errors. |
-| Terraform Plan | Generates an execution plan showing proposed infrastructure changes. |
-| Approval | Pauses the pipeline for manual approval before applying changes. |
-| Terraform Apply | Applies the approved Terraform execution plan. |
+| Checkout | Retrieves source code from GitHub |
+| Verify Tools and AWS Identity | Checks Terraform, AWS CLI and AWS account identity |
+| Terraform Format Check | Checks formatting recursively |
+| Deploy Dev | Initialises, validates, plans and applies Development infrastructure |
+| Deploy Staging | Initialises, validates, plans and applies Staging infrastructure |
+| Production Plan | Generates and archives the Production execution plan |
+| Production Approval | Requires manual approval |
+| Deploy Production | Applies the approved Production plan |
 
-### Manual Approval
+### Production Approval
 
-The pipeline includes a manual approval stage to prevent Terraform from applying infrastructure changes automatically.
+Production deployment is protected by a manual approval gate.
 
-Before proceeding, the user reviews the generated Terraform plan.
+This prevents Production infrastructure from being deployed automatically without an explicit approval decision.
 
-The user can either:
+The pipeline also includes:
 
-- Approve the deployment by selecting **Yes, apply**.
-- Stop the deployment by selecting **Abort**.
+- Build timestamps
+- Concurrent build prevention
+- Pipeline timeout
+- Terraform automation environment variables
+- Terraform plan artifact archiving
+- Post-build cleanup of temporary plan files
 
-This provides an additional control before infrastructure changes are made.
+## AWS IAM and Security
 
-## Project Structure
+The Jenkins EC2 instance uses an IAM instance profile:
 
-The repository is organised as follows:
+`Jenkins-EC2-Terraform-Profile`
 
-```text
-November/
-│
-├── terraform/
-│   ├── main.tf
-│   ├── provider.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   ├── versions.tf
-│   └── .terraform.lock.hcl
-│
-├── Jenkinsfile
-├── README.md
-└── .gitignore
+The associated IAM role is:
+
+`Jenkins-EC2-Terraform-Role`
+
+The role provides the permissions needed for Terraform to manage the project infrastructure and access the remote S3 backend.
+
+Security measures include:
+
+- IAM role-based access for Jenkins.
+- Restricted S3 access to the project state prefix.
+- Separate Terraform state files for each environment.
+- SSH access restricted through a configurable allowed CIDR.
+- HTTP access through the application security group.
+- No AWS access keys embedded in the Jenkinsfile.
+- Terraform state and temporary plan files excluded from Git.
+
+## Deployment and Validation
+
+The following commands can be used to validate an environment locally.
+
+For example, Development:
+
+```powershell
+cd terraform/environments/dev
+
+terraform init
+
+terraform fmt -check -recursive
+
+terraform validate
+
+terraform plan -var-file="terraform.tfvars"
 ```
 
-### Terraform Files
+Repeat the same process from the `staging` and `prod` directories.
 
-| File | Purpose |
+To apply an environment manually, review the plan first and then run:
+
+```powershell
+terraform apply -var-file="terraform.tfvars"
+```
+
+The Jenkins pipeline handles these operations automatically according to the configured deployment stages.
+
+## Project Demonstration Results
+
+The project was executed through Jenkins, with the following results:
+
+| Component | Result |
 |---|---|
-| `main.tf` | Defines the AWS infrastructure resources. |
-| `provider.tf` | Configures the AWS provider and region. |
-| `variables.tf` | Defines input variables used by Terraform. |
-| `outputs.tf` | Defines useful Terraform output values. |
-| `versions.tf` | Specifies Terraform and provider version requirements and backend configuration. |
-| `.terraform.lock.hcl` | Records the selected provider versions. |
+| GitHub source integration | Successful |
+| Jenkins pipeline execution | Successful |
+| AWS identity verification | Successful |
+| Terraform formatting and validation | Successful |
+| S3 remote state access | Successful after IAM policy correction |
+| Development deployment | Successful |
+| Staging deployment | Successful |
+| Production planning | Successful |
+| Production approval gate | Reached and approved |
+| Production infrastructure deployment | Blocked by AWS VPC quota |
 
-### Other Files
+### Production Deployment Limitation
 
-- `Jenkinsfile`: Defines the Jenkins declarative pipeline.
-- `.gitignore`: Excludes sensitive files, Terraform state files, and temporary files from Git.
-- `README.md`: Provides project documentation.
+During the demonstration, AWS returned:
+
+```text
+VpcLimitExceeded:
+The maximum number of VPCs has been reached.
+```
+
+The AWS account had reached its regional VPC quota in `us-east-1`.
+
+As a result, Terraform could not create the additional Production VPC.
+
+This was an AWS account service quota limitation rather than a Terraform configuration or Jenkins pipeline syntax error.
+
+The Production configuration and deployment stage remain part of the project. Completing the deployment requires an increased VPC quota or an architectural change to reuse an existing VPC.
 
 ## Prerequisites
 
-Before reproducing this project, the following are required:
+To reproduce this project, the following are required:
 
 - An AWS account.
-- An EC2 instance running Amazon Linux.
-- An IAM role with the required Terraform permissions.
-- An IAM instance profile attached to the EC2 instance.
-- Jenkins installed and configured.
-- Git installed on the Jenkins server.
-- Terraform installed on the Jenkins server.
-- AWS CLI installed on the Jenkins server.
+- AWS CLI installed and configured.
+- Terraform CLI installed.
+- Git installed.
 - A GitHub repository.
-- Jenkins credentials configured for GitHub and the Terraform public key.
+- A Jenkins server running on Amazon EC2.
+- An EC2 IAM instance profile with appropriate AWS permissions.
+- An S3 bucket configured for Terraform remote state.
+- An AWS EC2 key pair.
+- Appropriate AWS service quotas for the infrastructure being provisioned.
 
 ## Running the Project
 
-### Step 1: Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/scottobiaya/November-CICD.git
-```
 
-### Step 2: Navigate to the Project
-
-```bash
 cd November-CICD
 ```
 
-### Step 3: Initialise Terraform
+### 2. Configure AWS Access
+
+For local Terraform execution, configure the AWS CLI with an authorised AWS identity.
 
 ```bash
-cd terraform
+aws configure
+```
+
+Verify the AWS identity:
+
+```bash
+aws sts get-caller-identity
+```
+
+Jenkins uses its attached EC2 IAM role instead of locally configured access keys.
+
+### 3. Initialise Terraform
+
+Navigate to the required environment:
+
+```bash
+cd terraform/environments/dev
+```
+
+Initialise the backend:
+
+```bash
 terraform init
 ```
 
-### Step 4: Check Terraform Formatting
+### 4. Validate and Review
 
 ```bash
-terraform fmt -recursive
-```
+terraform fmt -check -recursive
 
-### Step 5: Validate the Configuration
-
-```bash
 terraform validate
+
+terraform plan -var-file="terraform.tfvars"
 ```
 
-### Step 6: Generate a Terraform Plan
+### 5. Execute Through Jenkins
 
-The public key variable must be supplied when running Terraform independently, for example through a securely configured `TF_VAR_public_key` environment variable.
+Configure the Jenkins Pipeline job to use:
+
+- Definition: Pipeline script from SCM
+- SCM: Git
+- Repository: `https://github.com/scottobiaya/November-CICD.git`
+- Branch: `*/main`
+- Script Path: `Jenkinsfile`
+
+Run the pipeline and monitor the individual deployment stages in Jenkins Console Output.
+
+## Cost Management and Cleanup
+
+AWS resources created by Terraform may incur charges while running.
+
+Before destroying any environment, ensure that the correct Terraform state and environment are selected.
+
+To destroy an environment manually, navigate to its directory and run:
 
 ```bash
-terraform plan
+terraform destroy -var-file="terraform.tfvars"
 ```
 
-### Step 7: Run the Jenkins Pipeline
+Review the proposed destruction carefully before confirming.
 
-In Jenkins:
+Do not delete the S3 backend bucket or Terraform state files while the infrastructure is still managed by Terraform.
 
-1. Open the configured November CI/CD job.
-2. Select **Build Now**.
-3. Open the running build.
-4. Monitor the pipeline stages in Console Output.
-5. Review the generated Terraform plan.
-6. Approve or abort the deployment when prompted.
+## Key Learning Outcomes
 
-## Security Considerations
+This project provided practical experience in:
 
-Security is an important part of this project.
-
-The following practices are implemented:
-
-- AWS permissions are assigned through IAM roles rather than hardcoded access keys.
-- The EC2 instance accesses AWS using its attached IAM instance profile.
-- Terraform state is stored remotely in Amazon S3.
-- S3 bucket versioning is enabled.
-- Sensitive Terraform variables are supplied through Jenkins credentials.
-- The SSH public key is not hardcoded into the Terraform configuration.
-- Git ignores Terraform state files, private keys, and sensitive configuration files.
-- A manual approval stage is included before Terraform applies changes.
-
-**Never commit the following files to GitHub:**
-
-- `terraform.tfstate`
-- `terraform.tfstate.backup`
-- `.tfvars` files containing secrets
-- Private SSH keys (`.pem`)
-- AWS access keys and secret access keys
-- Jenkins credentials or tokens
-
-## Project Outcome
-
-The project successfully demonstrates an automated Infrastructure as Code deployment workflow using Terraform and Jenkins.
-
-The pipeline successfully:
-
-- Connects to the GitHub repository.
-- Authenticates with AWS through the EC2 IAM role.
-- Initialises Terraform with the S3 remote backend.
-- Performs Terraform formatting and validation checks.
-- Generates a Terraform execution plan.
-- Archives the plan for review.
-- Pauses for manual approval before applying infrastructure changes.
-
-This project demonstrates practical experience with AWS infrastructure automation, Terraform, IAM, remote state management, GitHub integration, and Jenkins CI/CD pipelines.
-
-## Future Improvements
-
-Potential improvements include:
-
-- Introducing automated testing and security scanning.
-- Integrating Terraform security tools such as Checkov or tfsec.
-- Adding automated notifications for pipeline success or failure.
-- Introducing separate development, staging, and production environments.
-- Implementing more restrictive IAM permissions following least-privilege principles.
-- Integrating additional monitoring and logging.
+- Designing reusable Terraform modules.
+- Implementing Infrastructure as Code.
+- Building Jenkins declarative pipelines.
+- Integrating GitHub with Jenkins.
+- Automating multi-environment deployments.
+- Managing remote Terraform state and locking.
+- Configuring AWS IAM roles and permissions.
+- Implementing manual Production approval.
+- Troubleshooting AWS IAM and S3 access issues.
+- Diagnosing AWS service quota limitations.
+- Applying DevOps automation and infrastructure management practices.
 
 ## Author
 
 **Scott Obiaya**
 
-Cloud Infrastructure | AWS | Terraform | Jenkins | Infrastructure as Code | CI/CD
+Cloud Infrastructure | AWS | Terraform | Jenkins | DevOps | Infrastructure as Code
 
-GitHub: https://github.com/scottobiaya
+GitHub: [scottobiaya](https://github.com/scottobiaya)
+
+Project Repository: [November-CICD](https://github.com/scottobiaya/November-CICD)
