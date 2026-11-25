@@ -7,7 +7,13 @@ crash.log
 crash.*.log
 
 # Terraform variable files
+# Ignore Terraform variable files by default
 *.tfvars
+
+# Allow environment-specific configuration required by Jenkins
+!terraform/environments/dev/terraform.tfvars
+!terraform/environments/staging/terraform.tfvars
+!terraform/environments/prod/terraform.tfvars
 *.tfvars.json
 
 # Local overrides
@@ -46,3 +52,7 @@ Thumbs.db
 *.backup
 *.bak
 *.tmp
+
+# Terraform state backups
+**/state-backup.json
+**/terraform.tfstate*

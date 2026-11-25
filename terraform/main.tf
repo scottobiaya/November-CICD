@@ -64,14 +64,14 @@ resource "aws_security_group" "example" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["91.8.247.132/32"]
   }
 
   ingress {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["91.8.247.132/32"]
   }
 
   egress {
@@ -95,9 +95,8 @@ resource "aws_instance" "example" {
   user_data              = file("${path.module}/../scripts/install-jenkins.sh")
   key_name               = aws_key_pair.deployer.key_name
 
+  iam_instance_profile = "Jenkins-EC2-Terraform-Profile"
 }
-
-
 
 resource "aws_key_pair" "deployer" {
   key_name   = "november-ec2-key"

@@ -1,0 +1,118 @@
+
+# 1. Create a VPC for the environment
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name        = "${var.environment}-vpc"
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# 2. Create an Internet Gateway
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name        = "${var.environment}-igw"
+    Environment = var.environment
+  }
+}
+
+# 3. Create a public subnet
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = var.availability_zone
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name        = "${var.environment}-public-subnet"
+    Environment = var.environment
+  }
+}
+
+# 4. Create a public route table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name        = "${var.environment}-public-rt"
+    Environment = var.environment
+  }
+}
+
+# 5. Associate the public subnet with the route table
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
+# 6. Create a security group
+resource "aws_security_group" "web" {
+  name        = "${var.environment}-nginx-sg"
+  description = "Allow HTTP and SSH access"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "HTTP access for Nginx"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH access - restrict this to your IP later"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_allowed_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.environment}-nginx-sg"
+    Environment = var.environment
+  }
+}
+
+# 7. Create the Nginx EC2 instance
+resource "aws_instance" "web" {
+  ami                         = var.ami_id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public.id
+  vpc_security_group_ids      = [aws_security_group.web.id]
+  associate_public_ip_address = true
+  key_name                    = var.key_name
+
+  user_data = <<-EOF
+              #!/bin/bash
+              set -eux
+              dnf update -y
+              dnf install -y nginx
+              systemctl enable nginx
+              systemctl start nginx
+              echo "<h1>Nginx - ${var.environment} Environment</h1>" > /usr/share/nginx/html/index.html
+              EOF
+
+  tags = {
+    Name        = "${var.environment}-nginx-server"
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
